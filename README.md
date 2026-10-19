@@ -87,6 +87,9 @@ results.txt       # the table above
 layers/, logs/    # trained student layers (layer<i>.pt), one log file per step
 ```
 
+While a step runs, its elapsed time and the last line of its log are printed every minute, e.g.
+`[running] phase1_layer14 1h02m | --- [6500/15000] epoch 13: 2/5 min (elapsed/epoch) ---`.
+
 The script can be re-run after an interruption: finished steps are recorded in `outputs/<experiment>/.done` and
 skipped. The feature cache of a phase is deleted once its layers are trained.
 

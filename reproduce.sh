@@ -80,7 +80,17 @@ evaluate() {  # <gpus> <model_dir> <output_dir> [<lora_adapter_dir>]; several GP
   [[ $1 == *,* ]] && parallel=",parallelize=True"
   CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES=$1 lm_eval --model hf \
     --model_args "pretrained=$2,max_length=1024${parallel}${4:+,peft=$4}" --tasks "${TASKS}" --device cuda:0 \
-    --batch_size 1 --trust_remote_code --output_path "$3" > "$3.log" 2>&1
+    --batch_size 1 --trust_remote_code --output_path "$3" > "$3.log" 2>&1 &
+  local pid=$! start=${SECONDS} last=${SECONDS}
+  while kill -0 "${pid}" 2> /dev/null; do  # progress line every minute, as in run_curriculum.py
+    sleep 5
+    if (( SECONDS - last >= 60 )) && kill -0 "${pid}" 2> /dev/null; then
+      last=${SECONDS}
+      echo "[running] evaluation $(( (SECONDS - start) / 60 ))m | $(tail -c 4096 "$3.log" | tr '\r' '\n' | grep -v '^\s*$' | tail -n 1 | cut -c 1-160)"
+    fi
+  done
+  wait "${pid}" || { echo "[fail] evaluation: see $3.log"; exit 1; }
+  echo "[done] evaluation in $(( (SECONDS - start) / 60 ))m"
 }
 
 setup_env
@@ -105,7 +115,7 @@ for experiment in "${EXPERIMENTS[@]}"; do
   if [ "$(config_value "${cfg}" mode)" = online ]; then
     echo "${name}: compressed model in ${work}/post_train (BERT / GPT-2 are evaluated on GLUE / perplexity)"; continue
   fi
-  echo "=== ${name}: evaluating (log: ${work}/eval_*.log)"
+  echo "=== ${name}: evaluating (log: ${work}/eval_post_train.log)"
   n=$(config_value "${cfg}" gpus_per_model extract); n=${n:-1}   # GPUs per model copy (2 for 8B and larger)
   evaluate "$(IFS=,; echo "${GPU_LIST[*]:0:n}")" "${work}/stacked" "${work}/eval_post_train" "${work}/post_train"
   python scripts/summarize_results.py "${work}/eval_post_train" --names "${name}" | tee "${work}/results.txt"

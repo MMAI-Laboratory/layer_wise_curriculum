@@ -11,7 +11,9 @@ For every curriculum phase p = 1..K (see ``layer_curriculum/curriculum.py``):
 
 With ``--post_train`` the ``post_train`` section of the config is run afterwards (-> <work_dir>/post_train).
 
-Finished steps are recorded in ``<work_dir>/.done`` so an interrupted run resumes where it stopped.
+Finished steps are recorded in ``<work_dir>/.done`` so an interrupted run resumes where it stopped. The output of
+every step goes to ``<work_dir>/logs/<step>.log``; while a step runs, its elapsed time and the last line of its log
+are printed every ``--status_interval`` seconds.
 Configs with ``mode: online`` (BERT / GPT-2) skip feature caching and compute the features on the fly; their
 layers are trained one after another, each data-parallel over all ``--gpus``. An epoch is then one pass over
 ``train_file`` instead of over the cached samples.
@@ -54,6 +56,8 @@ def parse_args():
     parser.add_argument("--project", default="layer-curriculum")
     parser.add_argument("--cleanup_features", action="store_true",
                         help="Delete the feature cache of a phase once its layers are trained (saves disk)")
+    parser.add_argument("--status_interval", type=int, default=60,
+                        help="Seconds between progress lines of running steps (0: no progress lines)")
     parser.add_argument("--dry_run", action="store_true", help="Only print the commands")
     return parser.parse_args()
 
@@ -69,6 +73,23 @@ def to_cli(options: dict):
     return cli
 
 
+def format_time(seconds: float):
+    minutes = int(seconds // 60)
+    return f"{minutes // 60}h{minutes % 60:02d}m" if minutes >= 60 else f"{minutes}m{int(seconds % 60):02d}s"
+
+
+def last_line(path: str, max_bytes: int = 4096):
+    """Last non-empty line of a log file (progress bars end their lines with a carriage return)."""
+    try:
+        with open(path, "rb") as f:
+            f.seek(max(0, os.path.getsize(path) - max_bytes))
+            text = f.read().decode(errors="replace")
+    except OSError:
+        return ""
+    lines = [line.strip() for line in text.replace("\r", "\n").split("\n") if line.strip()]
+    return lines[-1][:160] if lines else ""
+
+
 def accelerate_launcher(num_processes: int):
     return [sys.executable, "-m", "accelerate.commands.launch", "--num_processes", str(num_processes),
             "--num_machines", "1", "--mixed_precision", "no", "--dynamo_backend", "no",
@@ -82,6 +103,7 @@ class Runner:
         self.log_dir = os.path.join(args.work_dir, "logs")
         os.makedirs(self.done_dir, exist_ok=True)
         os.makedirs(self.log_dir, exist_ok=True)
+        self.started, self.last_status = {}, time.time()
 
     def is_done(self, name):
         return os.path.exists(os.path.join(self.done_dir, name))
@@ -96,16 +118,36 @@ class Runner:
         print(f"[run] {name} (GPU {gpus}) -> {log_path}\n      CUDA_VISIBLE_DEVICES={gpus} {shlex.join(cmd)}", flush=True)
         if self.args.dry_run:
             return None
+        self.started[name] = self.last_status = time.time()
         return subprocess.Popen(cmd, env=env, stdout=open(log_path, "w"), stderr=subprocess.STDOUT)
+
+    def finish(self, name):
+        if name in self.started:
+            print(f"[done] {name} in {format_time(time.time() - self.started.pop(name))}", flush=True)
+        self.mark_done(name)
+
+    def report(self, names):
+        """Every ``--status_interval`` seconds: elapsed time and last log line of the running steps."""
+        now = time.time()
+        if not self.args.status_interval or now - self.last_status < self.args.status_interval:
+            return
+        self.last_status = now
+        for name in names:
+            log = last_line(os.path.join(self.log_dir, f"{name}.log"))
+            print(f"[running] {name} {format_time(now - self.started[name])}{' | ' + log if log else ''}", flush=True)
 
     def run(self, name, cmd, gpus):
         if self.is_done(name):
             print(f"[skip] {name} (already done)")
             return
         proc = self._popen(name, cmd, gpus)
-        if proc is not None and proc.wait() != 0:
-            sys.exit(f"[fail] {name}: see {os.path.join(self.log_dir, name + '.log')}")
-        self.mark_done(name)
+        if proc is not None:
+            while proc.poll() is None:
+                self.report([name])
+                time.sleep(5)
+            if proc.returncode != 0:
+                sys.exit(f"[fail] {name}: see {os.path.join(self.log_dir, name + '.log')}")
+        self.finish(name)
 
     def run_parallel(self, jobs, gpus):
         """Run ``jobs = [(name, cmd), ...]`` with at most ``--jobs_per_gpu`` jobs per GPU at a time."""
@@ -130,11 +172,12 @@ class Runner:
                         if other is not None and other.poll() is None:
                             other.terminate()
                     sys.exit(f"[fail] {name}: see {os.path.join(self.log_dir, name + '.log')}")
-                self.mark_done(name)
                 del running[name]
+                self.finish(name)
                 free.append(gpu)
             if running:
-                time.sleep(10)
+                self.report(list(running))
+                time.sleep(5)
 
 
 def main():
