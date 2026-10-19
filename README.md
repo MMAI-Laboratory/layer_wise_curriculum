@@ -274,7 +274,7 @@ Zero-shot evaluation uses `lm_eval==0.4.3` with `max_length=1024` and batch size
 lm_eval --model hf --tasks ai2_arc,race,boolq,winogrande,hellaswag,piqa,mathqa,coqa,mmlu --device cuda:0 \
     --model_args pretrained=outputs/llama3.2-3b_28to19/stacked,max_length=1024,peft=outputs/llama3.2-3b_28to19/post_train \
     --batch_size 1 --trust_remote_code --output_path outputs/llama3.2-3b_28to19/eval_post_train
-python scripts/summarize_results.py outputs/llama3.2-3b_28to19/eval_post_train   # columns and metrics of Tables 3 / 4
+python scripts/summarize_results.py outputs/llama3.2-3b_28to19/eval_post_train   
 ```
 
 The tables report `acc_norm` for ARC-E/C, HellaSwag, PIQA and MathQA, `acc` for RACE, BoolQ, WinoGrande and MMLU,
