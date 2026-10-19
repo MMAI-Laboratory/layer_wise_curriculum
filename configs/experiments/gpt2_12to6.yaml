@@ -1,0 +1,32 @@
+# GPT-2 (12 layers, d=768), 12 -> 6 layers
+mode: online                     # features are computed on the fly instead of cached
+model: gpt2
+layer_config: uniform:2          # teacher layers [0, 2, 4, 6, 8, 11]
+train_file: data/gpt2/openwebtext_120M-1024   # 120M tokens of OpenWebText (scripts/prepare_corpus.py)
+block_size: 1024
+use_flash_attn: true
+
+train:                           # each layer is trained data-parallel over all GPUs
+  loss_func: cossim
+  lr: 6.0e-4
+  lr_scheduler: linear
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  beta1: 0.9
+  beta2: 0.98
+  train_batch_size: 32           # per GPU
+  global_batch_size: 512         # gradient accumulation is derived from the number of GPUs
+
+curriculum:
+  alpha: 0.035   
+
+post_train:              # causal-LM recovery of the stacked student (full fine-tuning)
+  lr: 6.0e-4
+  lr_scheduler: linear
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  beta1: 0.9
+  beta2: 0.98
+  train_batch_size: 16   # per GPU
+  global_batch_size: 512
+  train_epoch: 3

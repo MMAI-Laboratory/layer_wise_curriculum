@@ -1,0 +1,33 @@
+# BERT-base, 12 -> 6 layers
+mode: online                     # features are computed on the fly instead of cached
+model: google-bert/bert-base-uncased
+layer_config: uniform:2          # teacher layers [0, 2, 4, 6, 8, 11]
+train_file: data/bert/wikibook_120M-512   # 120M tokens of Wikipedia + BookCorpus (scripts/prepare_corpus.py)
+block_size: 512
+use_flash_attn: false
+
+train:                           # each layer is trained data-parallel over all GPUs
+  loss_func: cossim
+  lr: 1.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  beta1: 0.9
+  beta2: 0.999
+  train_batch_size: 32           # per GPU
+  global_batch_size: 256         # gradient accumulation is derived from the number of GPUs
+
+curriculum:
+  alpha: 0.035   
+
+post_train:              # masked-LM recovery of the stacked student (scripts/post_train.py --mlm)
+  mlm: true
+  lr: 1.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  beta1: 0.9
+  beta2: 0.999
+  train_batch_size: 32   # per GPU
+  global_batch_size: 256
+  train_epoch: 3

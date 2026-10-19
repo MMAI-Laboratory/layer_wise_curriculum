@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the paper below."
+title: "Layer-wise Curriculum Learning for Efficient LLM Compression"
+repository-code: "https://github.com/MMAI-Laboratory/layer_wise_curriculum"
+license: MIT
+authors:
+  - family-names: Lee
+    given-names: Donggeon
+    affiliation: "Ajou University"
+  - family-names: Na
+    given-names: Dooyeon
+    affiliation: "Ajou University"
+  - family-names: Oh
+    given-names: Seungmin
+    affiliation: "Ajou University"
+  - family-names: Ryu
+    given-names: Jongbin
+    affiliation: "Ajou University"
+preferred-citation:
+  type: conference-paper
+  title: "Layer-wise Curriculum Learning for Efficient LLM Compression"
+  authors:
+    - family-names: Lee
+      given-names: Donggeon
+    - family-names: Na
+      given-names: Dooyeon
+    - family-names: Oh
+      given-names: Seungmin
+    - family-names: Ryu
+      given-names: Jongbin
+  collection-title: "Proceedings of the 2026 Conference on Empirical Methods in Natural Language Processing"
+  year: 2026
+  url: "https://arxiv.org/abs/2609.19213"

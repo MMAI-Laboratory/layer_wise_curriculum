@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "layer-curriculum"
+version = "1.0.0"
+description = "Layer-wise Curriculum Learning for Efficient LLM Compression (EMNLP 2026)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "torch>=2.1",
+    "transformers==4.44.2",
+    "accelerate==0.32.0",
+    "datasets>=2.19,<3",
+    "peft>=0.11",
+    "safetensors",
+    "pyyaml",
+    "wandb",
+]
+
+[project.urls]
+Repository = "https://github.com/MMAI-Laboratory/layer_wise_curriculum"
+Paper = "https://arxiv.org/abs/2609.19213"
+
+[project.optional-dependencies]
+eval = ["lm_eval==0.4.3"]
+flash = ["flash-attn==2.7.3"]
+
+[tool.setuptools]
+packages = ["layer_curriculum"]

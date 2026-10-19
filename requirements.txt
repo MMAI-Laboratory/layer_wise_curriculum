@@ -1,0 +1,18 @@
+# Tested environment (the paper used Python 3.10, CUDA 11.8 and PyTorch 2.4.0). reproduce.sh installs it.
+# Install PyTorch first, e.g.  pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cu118
+torch==2.4.0
+transformers==4.44.2
+accelerate==0.32.0
+datasets==2.21.0          # lm_eval 0.4.3 needs dataset scripts (removed in datasets 4)
+pyarrow==17.0.0
+fsspec==2024.6.1
+peft==0.14.0
+safetensors==0.8.0
+tokenizers==0.19.1
+sentencepiece==0.2.0
+protobuf==3.20.3
+numpy==1.26.4
+pyyaml==6.0.3
+wandb==0.18.0
+lm_eval==0.4.3
+# flash-attn==2.7.3   (pip install flash-attn==2.7.3 --no-build-isolation)
